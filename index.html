@@ -22,7 +22,7 @@
     background: #fff;
     border: 1px solid #D0D0D0;
     width: 100%;
-    max-width: 520px;
+    max-width: 560px;
   }
 
   .header {
@@ -84,10 +84,67 @@
   .row { display: flex; gap: 16px; }
   .row .field { flex: 1; }
 
+  .row-3 { display: flex; gap: 16px; }
+  .row-3 .field { flex: 1; }
+
   .divider {
     height: 1px;
     background: #E0E0E0;
     margin: 24px 0;
+  }
+
+  /* Section toggle */
+  .section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    margin-bottom: 0;
+    padding: 12px 0;
+    border-top: 1px solid #E0E0E0;
+    user-select: none;
+  }
+  .section-toggle .toggle-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #333;
+  }
+  .section-toggle .toggle-hint {
+    font-size: 11px;
+    color: #999;
+  }
+  .section-toggle .arrow {
+    font-size: 12px;
+    color: #999;
+    transition: transform 0.2s;
+  }
+  .section-toggle.open .arrow { transform: rotate(180deg); }
+
+  .collapsible {
+    display: none;
+    padding-top: 16px;
+  }
+  .collapsible.open { display: block; }
+
+  .room-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .badge {
+    display: inline-block;
+    background: #F0F0F0;
+    border: 1px solid #DDD;
+    padding: 2px 8px;
+    font-size: 10px;
+    color: #666;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
   }
 
   .btn {
@@ -113,7 +170,7 @@
     display: none;
   }
   .status.ok { display: block; background: #F0F0F0; color: #111; border: 1px solid #CCC; }
-  .status.err { display: block; background: #FFF; color: #111; border: 1px solid #CCC; }
+  .status.err { display: block; background: #FFF; color: #c00; border: 1px solid #CCC; }
   .status.loading { display: block; background: #F5F5F5; color: #666; border: 1px solid #DDD; }
 
   .footer {
@@ -135,6 +192,16 @@
     line-height: 1.6;
   }
   .steps strong { color: #333; }
+  .steps a { color: #111; }
+
+  .mode-indicator {
+    font-size: 11px;
+    color: #888;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: #F8F8F8;
+    border: 1px solid #E8E8E8;
+  }
 </style>
 </head>
 <body>
@@ -147,13 +214,17 @@
   </div>
 
   <div class="steps">
-    <p><strong>1.</strong> Upload your PDF to <a href="https://drive.google.com/drive/home" target="_blank" style="color:#111;">Google Drive</a><br>
-    <strong>2.</strong> Right-click the file > Share > Set to "Anyone with the link"<br>
-    <strong>3.</strong> Copy the file ID from the URL: drive.google.com/file/d/<strong>THIS_PART</strong>/view<br>
-    <strong>4.</strong> Paste it below and hit Generate</p>
+    <p>
+      <strong>1.</strong> Upload your PDF to <a href="https://drive.google.com/drive/home" target="_blank">Google Drive</a><br>
+      <strong>2.</strong> Right-click > Share > "Anyone with the link"<br>
+      <strong>3.</strong> Copy the file ID from the URL: drive.google.com/file/d/<strong>THIS_PART</strong>/view<br>
+      <strong>4.</strong> Fill in the form and hit Generate
+    </p>
   </div>
 
   <div class="body">
+
+    <!-- Core fields -->
     <div class="field">
       <label>Google Drive File ID *</label>
       <input type="text" id="fileId" placeholder="e.g. 1WCxPTDKYBuPw1jbK7ebMERyiRyIL9dJc">
@@ -164,14 +235,23 @@
       <input type="text" id="projectName" placeholder="e.g. Riverslane by Gracefield">
     </div>
 
-    <div class="field">
-      <label>Building Type</label>
-      <select id="buildingType">
-        <option value="commercial">Commercial</option>
-        <option value="hotel-renovation">Hotel Renovation</option>
-        <option value="residential">Residential</option>
-        <option value="new-construction">New Construction</option>
-      </select>
+    <div class="row">
+      <div class="field">
+        <label>Building Type</label>
+        <select id="buildingType">
+          <option value="hotel-renovation">Hotel Renovation</option>
+          <option value="commercial">Commercial</option>
+          <option value="residential">Residential</option>
+          <option value="new-construction">New Construction</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>AI Model</label>
+        <select id="aiModel">
+          <option value="google/gemini-2.5-flash">GrowAI m1.0</option>
+          <option value="google/gemini-2.5-pro">GrowAI m2.0</option>
+        </select>
+      </div>
     </div>
 
     <div class="row">
@@ -187,22 +267,96 @@
 
     <div class="divider"></div>
 
-    <div class="row">
-      <div class="field">
-        <label>Page Range</label>
-        <input type="text" id="pageRange" value="all" placeholder="all, 1-5, 1-3,8">
+    <!-- Room Data — collapsible -->
+    <div class="section-toggle" id="roomToggle" onclick="toggleSection()">
+      <div>
+        <span class="toggle-label">Room Data</span>
+        <span class="badge" id="roomBadge">AI will count from PDF</span>
       </div>
-      <div class="field">
-        <label>Models</label>
-        <select id="aiModel">
-          <option value="google/gemini-2.5-flash">GrowAI m1.0</option>
-          <option value="google/gemini-2.5-pro">GrowAI m2.0</option>
-        </select>
+      <span class="arrow" id="toggleArrow">▼</span>
+    </div>
+
+    <div class="collapsible" id="roomSection">
+      <div id="modeIndicator" class="mode-indicator">
+        ⚡ When filled in, these values override AI counting — results will be consistent every run.
+      </div>
+
+      <div style="margin-top:16px;">
+        <div class="row">
+          <div class="field">
+            <label>Total Keys</label>
+            <input type="number" id="totalKeys" placeholder="e.g. 137" oninput="updateBadge()">
+          </div>
+          <div class="field">
+            <label>Corridor Floors</label>
+            <input type="number" id="corridorFloors" placeholder="e.g. 4" oninput="updateBadge()">
+          </div>
+        </div>
+
+        <div class="row-3">
+          <div class="field">
+            <label>Wet Bar Rooms</label>
+            <input type="number" id="wetBarRooms" placeholder="e.g. 4">
+          </div>
+          <div class="field">
+            <label>Accessible Rooms</label>
+            <input type="number" id="accessibleRooms" placeholder="e.g. 6">
+          </div>
+          <div class="field">
+            <label>Jacuzzi Rooms</label>
+            <input type="number" id="jacuzziRooms" placeholder="e.g. 4">
+          </div>
+        </div>
+
+        <div style="margin-bottom:4px;">
+          <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:#555;display:block;margin-bottom:8px;">Room Distribution <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#999;">(optional)</span></label>
+          <div class="room-grid">
+            <div class="field" style="margin-bottom:0;">
+              <label>K (King)</label>
+              <input type="number" id="roomK" placeholder="52">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>KE</label>
+              <input type="number" id="roomKE" placeholder="3">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>QQ</label>
+              <input type="number" id="roomQQ" placeholder="75">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>K-AR</label>
+              <input type="number" id="roomKAR" placeholder="2">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>QQ-AR</label>
+              <input type="number" id="roomQQAR" placeholder="2">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>K1B-AT</label>
+              <input type="number" id="roomK1BAT" placeholder="1">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>K1B-1</label>
+              <input type="number" id="roomK1B1" placeholder="1">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>K1B-2</label>
+              <input type="number" id="roomK1B2" placeholder="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>King Tub→Shower Conversions</label>
+          <input type="number" id="kingTubToShower" placeholder="e.g. 52">
+          <p class="hint">Number of King rooms converting tub to shower</p>
+        </div>
       </div>
     </div>
 
-    <button class="btn" id="submitBtn" onclick="submitTakeoff()">Generate Takeoff</button>
+    <div class="divider"></div>
 
+    <button class="btn" id="submitBtn" onclick="submitTakeoff()">Generate Takeoff</button>
     <div class="status" id="status"></div>
   </div>
 
@@ -212,17 +366,78 @@
 <script>
 const WEBHOOK_URL = 'https://growaiagency.app.n8n.cloud/webhook/takeoff-trigger';
 
+function toggleSection() {
+  const section = document.getElementById('roomSection');
+  const toggle = document.getElementById('roomToggle');
+  section.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+
+function updateBadge() {
+  const keys = document.getElementById('totalKeys').value;
+  const floors = document.getElementById('corridorFloors').value;
+  const badge = document.getElementById('roomBadge');
+  if (keys || floors) {
+    badge.textContent = 'Overriding AI counts';
+    badge.style.background = '#111';
+    badge.style.color = '#fff';
+    badge.style.borderColor = '#111';
+  } else {
+    badge.textContent = 'AI will count from PDF';
+    badge.style.background = '#F0F0F0';
+    badge.style.color = '#666';
+    badge.style.borderColor = '#DDD';
+  }
+}
+
+function buildRoomData() {
+  const totalKeys = document.getElementById('totalKeys').value;
+  const corridorFloors = document.getElementById('corridorFloors').value;
+  const wetBarRooms = document.getElementById('wetBarRooms').value;
+  const accessibleRooms = document.getElementById('accessibleRooms').value;
+  const jacuzziRooms = document.getElementById('jacuzziRooms').value;
+  const kingTubToShower = document.getElementById('kingTubToShower').value;
+
+  // Only build room_data if at least total_keys is provided
+  if (!totalKeys) return null;
+
+  const roomData = {
+    total_keys: parseInt(totalKeys)
+  };
+
+  if (corridorFloors) roomData.corridor_floors = parseInt(corridorFloors);
+  if (wetBarRooms) roomData.wet_bar_rooms = parseInt(wetBarRooms);
+  if (accessibleRooms) roomData.accessible_rooms = parseInt(accessibleRooms);
+  if (jacuzziRooms) roomData.jacuzzi_rooms = parseInt(jacuzziRooms);
+  if (kingTubToShower) roomData.king_tub_to_shower = parseInt(kingTubToShower);
+
+  // Room distribution — only include if any filled
+  const dist = {};
+  const distFields = ['K','KE','QQ','K-AR','QQ-AR','K1B-AT','K1B-1','K1B-2'];
+  const distIds = ['roomK','roomKE','roomQQ','roomKAR','roomQQAR','roomK1BAT','roomK1B1','roomK1B2'];
+  let hasAnyDist = false;
+  distIds.forEach((id, i) => {
+    const val = document.getElementById(id).value;
+    if (val) { dist[distFields[i]] = parseInt(val); hasAnyDist = true; }
+  });
+  if (hasAnyDist) roomData.room_distribution = dist;
+
+  return roomData;
+}
+
 async function submitTakeoff() {
   const fileId = document.getElementById('fileId').value.trim();
   const estimatorEmail = document.getElementById('estimatorEmail').value.trim();
-  
+
   if (!fileId) { showStatus('Enter a Google Drive file ID.', 'err'); return; }
   if (!estimatorEmail) { showStatus('Enter an estimator email.', 'err'); return; }
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
   btn.textContent = 'Processing...';
-  showStatus('Sending blueprint to AI for analysis. This takes 1-3 minutes for large files.', 'loading');
+  showStatus('Sending blueprint to AI for analysis. This takes 1–3 minutes for large files.', 'loading');
+
+  const roomData = buildRoomData();
 
   const payload = {
     file_id: fileId,
@@ -230,9 +445,13 @@ async function submitTakeoff() {
     building_type: document.getElementById('buildingType').value,
     estimator_email: estimatorEmail,
     from_email: document.getElementById('fromEmail').value.trim() || estimatorEmail,
-    page_range: document.getElementById('pageRange').value.trim() || 'all',
     ai_model: document.getElementById('aiModel').value
   };
+
+  if (roomData) {
+    payload.total_keys = roomData.total_keys;
+    payload.room_data = roomData;
+  }
 
   try {
     const response = await fetch(WEBHOOK_URL, {
@@ -242,7 +461,7 @@ async function submitTakeoff() {
     });
 
     if (response.ok) {
-      showStatus('Takeoff complete. Check ' + estimatorEmail + ' for the estimate with approve/reject options.', 'ok');
+      showStatus('✓ Takeoff complete. Check ' + estimatorEmail + ' for the estimate.', 'ok');
     } else {
       const text = await response.text();
       showStatus('Error: ' + (text || 'Request failed. Check the file ID and try again.'), 'err');
