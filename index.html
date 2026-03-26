@@ -164,20 +164,14 @@
       <input type="text" id="projectName" placeholder="e.g. Courtyard by Marriott Jacksonville">
     </div>
 
-    <div class="row">
-      <div class="field">
-        <label>Building Type</label>
-        <select id="buildingType">
-          <option value="commercial">Commercial</option>
-          <option value="hotel-renovation">Hotel Renovation</option>
-          <option value="residential">Residential</option>
-          <option value="new-construction">New Construction</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Location</label>
-        <input type="text" id="location" placeholder="e.g. Jacksonville Beach, FL">
-      </div>
+    <div class="field">
+      <label>Building Type</label>
+      <select id="buildingType">
+        <option value="commercial">Commercial</option>
+        <option value="hotel-renovation">Hotel Renovation</option>
+        <option value="residential">Residential</option>
+        <option value="new-construction">New Construction</option>
+      </select>
     </div>
 
     <div class="row">
@@ -195,16 +189,9 @@
 
     <div class="row">
       <div class="field">
-        <label>Labor Rate ($/hr)</label>
-        <input type="number" id="laborRate" value="65" min="0">
-      </div>
-      <div class="field">
         <label>Page Range</label>
         <input type="text" id="pageRange" value="all" placeholder="all, 1-5, 1-3,8">
       </div>
-    </div>
-
-    <div class="row">
       <div class="field">
         <label>AI Model</label>
         <select id="aiModel">
@@ -212,13 +199,7 @@
           <option value="google/gemini-2.5-pro">Gemini 2.5 Pro (accurate, slower)</option>
         </select>
       </div>
-      <div class="field">
-        <label>Scope Notes</label>
-        <input type="text" id="scopeNotes" placeholder="e.g. Full scope, exclude exterior">
-      </div>
     </div>
-
-    <div class="divider"></div>
 
     <button class="btn" id="submitBtn" onclick="submitTakeoff()">Generate Takeoff</button>
 
@@ -247,13 +228,10 @@ async function submitTakeoff() {
     file_id: fileId,
     project_name: document.getElementById('projectName').value.trim() || 'Untitled Project',
     building_type: document.getElementById('buildingType').value,
-    location: document.getElementById('location').value.trim() || '',
     estimator_email: estimatorEmail,
     from_email: document.getElementById('fromEmail').value.trim() || estimatorEmail,
-    labor_rate: parseInt(document.getElementById('laborRate').value) || 65,
     page_range: document.getElementById('pageRange').value.trim() || 'all',
-    ai_model: document.getElementById('aiModel').value,
-    scope_notes: document.getElementById('scopeNotes').value.trim() || 'Full scope'
+    ai_model: document.getElementById('aiModel').value
   };
 
   try {
