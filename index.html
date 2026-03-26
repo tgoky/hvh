@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Takeoff Generator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #F0F0F0;
+    color: #111;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #D0D0D0;
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .header {
+    background: #111;
+    padding: 28px 28px 24px;
+  }
+  .header p.label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #888;
+    margin-bottom: 6px;
+  }
+  .header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .header p.sub {
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+  }
+
+  .body { padding: 28px; }
+
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #555;
+    margin-bottom: 6px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    border: 1px solid #CCC;
+    background: #fff;
+    color: #111;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: #111;
+  }
+  .field input::placeholder { color: #AAA; }
+  .field .hint {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+  }
+
+  .row { display: flex; gap: 16px; }
+  .row .field { flex: 1; }
+
+  .divider {
+    height: 1px;
+    background: #E0E0E0;
+    margin: 24px 0;
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    background: #111;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #333; }
+  .btn:disabled { background: #999; cursor: not-allowed; }
+
+  .status {
+    margin-top: 16px;
+    padding: 12px;
+    font-size: 13px;
+    display: none;
+  }
+  .status.ok { display: block; background: #F0F0F0; color: #111; border: 1px solid #CCC; }
+  .status.err { display: block; background: #FFF; color: #111; border: 1px solid #CCC; }
+  .status.loading { display: block; background: #F5F5F5; color: #666; border: 1px solid #DDD; }
+
+  .footer {
+    padding: 14px 28px;
+    border-top: 1px solid #E0E0E0;
+    text-align: center;
+    font-size: 10px;
+    color: #AAA;
+  }
+
+  .steps {
+    padding: 16px 28px;
+    background: #F8F8F8;
+    border-bottom: 1px solid #E0E0E0;
+  }
+  .steps p {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.6;
+  }
+  .steps strong { color: #333; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <p class="label">Construction</p>
+    <h1>Takeoff Generator</h1>
+    <p class="sub">Upload a blueprint PDF to Google Drive, paste the file ID, and generate a full material takeoff.</p>
+  </div>
+
+  <div class="steps">
+    <p><strong>1.</strong> Upload your PDF to <a href="https://drive.google.com/drive/home" target="_blank" style="color:#111;">Google Drive</a><br>
+    <strong>2.</strong> Right-click the file > Share > Set to "Anyone with the link"<br>
+    <strong>3.</strong> Copy the file ID from the URL: drive.google.com/file/d/<strong>THIS_PART</strong>/view<br>
+    <strong>4.</strong> Paste it below and hit Generate</p>
+  </div>
+
+  <div class="body">
+    <div class="field">
+      <label>Google Drive File ID *</label>
+      <input type="text" id="fileId" placeholder="e.g. 1WCxPTDKYBuPw1jbK7ebMERyiRyIL9dJc">
+    </div>
+
+    <div class="field">
+      <label>Project Name</label>
+      <input type="text" id="projectName" placeholder="e.g. Courtyard by Marriott Jacksonville">
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Building Type</label>
+        <select id="buildingType">
+          <option value="commercial">Commercial</option>
+          <option value="hotel-renovation">Hotel Renovation</option>
+          <option value="residential">Residential</option>
+          <option value="new-construction">New Construction</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Location</label>
+        <input type="text" id="location" placeholder="e.g. Jacksonville Beach, FL">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Estimator Email *</label>
+        <input type="email" id="estimatorEmail" placeholder="estimator@company.com">
+      </div>
+      <div class="field">
+        <label>From Email</label>
+        <input type="email" id="fromEmail" placeholder="team@company.com">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="field">
+        <label>Labor Rate ($/hr)</label>
+        <input type="number" id="laborRate" value="65" min="0">
+      </div>
+      <div class="field">
+        <label>Page Range</label>
+        <input type="text" id="pageRange" value="all" placeholder="all, 1-5, 1-3,8">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>AI Model</label>
+        <select id="aiModel">
+          <option value="google/gemini-2.5-flash">Gemini 2.5 Flash (fast, cheap)</option>
+          <option value="google/gemini-2.5-pro">Gemini 2.5 Pro (accurate, slower)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Scope Notes</label>
+        <input type="text" id="scopeNotes" placeholder="e.g. Full scope, exclude exterior">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <button class="btn" id="submitBtn" onclick="submitTakeoff()">Generate Takeoff</button>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="footer">GrowAI Takeoff Generator</div>
+</div>
+
+<script>
+const WEBHOOK_URL = 'https://growaiagency.app.n8n.cloud/webhook/takeoff-trigger';
+
+async function submitTakeoff() {
+  const fileId = document.getElementById('fileId').value.trim();
+  const estimatorEmail = document.getElementById('estimatorEmail').value.trim();
+  
+  if (!fileId) { showStatus('Enter a Google Drive file ID.', 'err'); return; }
+  if (!estimatorEmail) { showStatus('Enter an estimator email.', 'err'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+  showStatus('Sending blueprint to AI for analysis. This takes 1-3 minutes for large files.', 'loading');
+
+  const payload = {
+    file_id: fileId,
+    project_name: document.getElementById('projectName').value.trim() || 'Untitled Project',
+    building_type: document.getElementById('buildingType').value,
+    location: document.getElementById('location').value.trim() || '',
+    estimator_email: estimatorEmail,
+    from_email: document.getElementById('fromEmail').value.trim() || estimatorEmail,
+    labor_rate: parseInt(document.getElementById('laborRate').value) || 65,
+    page_range: document.getElementById('pageRange').value.trim() || 'all',
+    ai_model: document.getElementById('aiModel').value,
+    scope_notes: document.getElementById('scopeNotes').value.trim() || 'Full scope'
+  };
+
+  try {
+    const response = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      showStatus('Takeoff complete. Check ' + estimatorEmail + ' for the estimate with approve/reject options.', 'ok');
+    } else {
+      const text = await response.text();
+      showStatus('Error: ' + (text || 'Request failed. Check the file ID and try again.'), 'err');
+    }
+  } catch (e) {
+    showStatus('Network error: ' + e.message, 'err');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Generate Takeoff';
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.className = 'status ' + type;
+  el.textContent = msg;
+}
+</script>
+
+</body>
+</html>
