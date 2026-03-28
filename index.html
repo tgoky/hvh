@@ -202,6 +202,7 @@
     margin-top: 4px;
   }
 
+  /* Progress bar — simple, no timer */
   .progress { display: none; margin-top: 14px; }
   .progress.show { display: block; }
   .progress-bar-wrap {
@@ -213,14 +214,12 @@
     height: 100%;
     background: #111;
     width: 0%;
-    transition: width 0.6s ease;
+    transition: width 1.2s ease;
   }
-  .progress-meta {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 6px;
+  .progress-label {
     font-size: 11px;
     color: #999;
+    margin-top: 6px;
   }
 </style>
 </head>
@@ -256,7 +255,7 @@
     </div>
 
     <div class="ai-note">
-   
+      <div class="dot"></div>
       <span>Project name, building type, room counts, and layout details are automatically detected from the blueprint. No manual input required.</span>
     </div>
 
@@ -326,10 +325,7 @@
       <div class="progress-bar-wrap">
         <div class="progress-bar" id="progressBar"></div>
       </div>
-      <div class="progress-meta">
-        <span id="progressMsg">Sending blueprint to AI…</span>
-        <span id="progressTime">0s</span>
-      </div>
+      <div class="progress-label" id="progressLabel">Sending to AI…</div>
     </div>
 
     <div class="status" id="status"></div>
@@ -341,20 +337,6 @@
 <script>
   const WEBHOOK_URL     = 'https://growaiagency.app.n8n.cloud/webhook/takeoff-trigger';
   const CONFIRM_TIMEOUT = 20000;
-  const ESTIMATED_SECS  = 180;
-
-  let elapsedTimer = null;
-  let elapsedSecs  = 0;
-
-  const PROGRESS_MSGS = [
-    { at: 0,   msg: 'Sending blueprint to AI…' },
-    { at: 8,   msg: 'Reading blueprint PDF…' },
-    { at: 20,  msg: 'Identifying building type and rooms…' },
-    { at: 40,  msg: 'Extracting scope items…' },
-    { at: 70,  msg: 'Calculating material and labor costs…' },
-    { at: 110, msg: 'Generating estimate document…' },
-    { at: 150, msg: 'Preparing and sending email…' },
-  ];
 
   function toggleOverride() {
     document.getElementById('overrideSection').classList.toggle('open');
@@ -390,32 +372,27 @@
     return roomData;
   }
 
-  function startProgress() {
-    elapsedSecs = 0;
+  function showProgress(label) {
     document.getElementById('progress').classList.add('show');
-    document.getElementById('progressBar').style.width = '0%';
-    document.getElementById('progressMsg').textContent = PROGRESS_MSGS[0].msg;
-    document.getElementById('progressTime').textContent = '0s';
-
-    elapsedTimer = setInterval(() => {
-      elapsedSecs++;
-      document.getElementById('progressTime').textContent = elapsedSecs + 's';
-      const match = [...PROGRESS_MSGS].reverse().find(m => elapsedSecs >= m.at);
-      if (match) document.getElementById('progressMsg').textContent = match.msg;
-      const pct = Math.min(93, (elapsedSecs / ESTIMATED_SECS) * 100);
-      document.getElementById('progressBar').style.width = pct + '%';
-    }, 1000);
+    document.getElementById('progressLabel').textContent = label;
+    // Animate to ~60% to show activity, but never fake "done"
+    setTimeout(() => {
+      document.getElementById('progressBar').style.width = '60%';
+    }, 50);
   }
 
-  function finishProgress(success) {
-    clearInterval(elapsedTimer);
-    if (success) {
-      document.getElementById('progressBar').style.width = '100%';
-      document.getElementById('progressMsg').textContent = 'Done ✓';
-      setTimeout(() => document.getElementById('progress').classList.remove('show'), 2000);
-    } else {
+  function completeProgress() {
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('progressLabel').textContent = 'Sent ✓';
+    setTimeout(() => {
       document.getElementById('progress').classList.remove('show');
-    }
+      document.getElementById('progressBar').style.width = '0%';
+    }, 1500);
+  }
+
+  function hideProgress() {
+    document.getElementById('progress').classList.remove('show');
+    document.getElementById('progressBar').style.width = '0%';
   }
 
   function showStatus(msg, type) {
@@ -433,9 +410,9 @@
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.textContent = 'Processing…';
+    btn.textContent = 'Sending…';
     document.getElementById('status').className = 'status';
-    startProgress();
+    showProgress('Sending blueprint to AI…');
 
     const payload = {
       file_id:         fileId,
@@ -462,26 +439,28 @@
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        finishProgress(true);
+        completeProgress();
         showStatus(
-          '✓ Takeoff in progress. The estimate will be emailed to ' + estimatorEmail + ' within 2–5 minutes.',
+          '✓ Blueprint received. The estimate will be emailed to ' + estimatorEmail + ' within 2–5 minutes.',
           'ok'
         );
       } else {
         const text = await response.text().catch(() => '');
-        finishProgress(false);
+        hideProgress();
         showStatus('Server error ' + response.status + ': ' + (text || 'Check the file ID and try again.'), 'err');
       }
 
     } catch (e) {
       clearTimeout(timeoutId);
       if (e.name === 'AbortError') {
+        // Webhook hit but took longer than 20s to respond — n8n is processing
+        completeProgress();
         showStatus(
-          '✓ Blueprint received. Processing large files can take 3–6 minutes — check ' + estimatorEmail + ' for the estimate.',
+          '✓ Blueprint received. The estimate will be emailed to ' + estimatorEmail + ' within 2–5 minutes.',
           'ok'
         );
       } else {
-        finishProgress(false);
+        hideProgress();
         showStatus('Could not reach the server. Check your connection and try again.', 'err');
       }
     }
