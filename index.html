@@ -73,7 +73,7 @@
     color: #555;
     margin-bottom: 6px;
   }
-  .field input, .field select, .field textarea {
+  .field input {
     width: 100%;
     padding: 10px 12px;
     font-size: 14px;
@@ -86,15 +86,7 @@
     -webkit-appearance: none;
     appearance: none;
   }
-  .field select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 32px;
-  }
-  .field input:focus, .field select:focus {
-    border-color: #111;
-  }
+  .field input:focus { border-color: #111; }
   .field input::placeholder { color: #AAA; }
   .field .hint {
     font-size: 11px;
@@ -111,7 +103,6 @@
     margin: 24px 0;
   }
 
-  /* Override section */
   .override-toggle {
     display: flex;
     align-items: center;
@@ -142,10 +133,7 @@
   }
   .override-toggle.open .arrow { transform: rotate(180deg); }
 
-  .collapsible {
-    display: none;
-    padding-top: 16px;
-  }
+  .collapsible { display: none; padding-top: 16px; }
   .collapsible.open { display: block; }
 
   .room-grid {
@@ -183,7 +171,6 @@
   }
   .status.ok  { display: block; background: #F0F0F0; color: #111; }
   .status.err { display: block; background: #FFF0F0; color: #c00; border-color: #f5c0c0; }
-  .status.loading { display: block; background: #F8F8F8; color: #666; }
 
   .footer {
     padding: 14px 28px;
@@ -214,6 +201,27 @@
     flex-shrink: 0;
     margin-top: 4px;
   }
+
+  .progress { display: none; margin-top: 14px; }
+  .progress.show { display: block; }
+  .progress-bar-wrap {
+    height: 3px;
+    background: #E0E0E0;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: #111;
+    width: 0%;
+    transition: width 0.6s ease;
+  }
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #999;
+  }
 </style>
 </head>
 <body>
@@ -242,28 +250,22 @@
     </div>
 
     <div class="field">
-      <label>Project Name</label>
-      <input type="text" id="projectName" placeholder="e.g. Hilton Garden Inn Gulfport Renovation">
-    </div>
-
-    <div class="field">
       <label>Estimator Email *</label>
       <input type="email" id="estimatorEmail" placeholder="estimator@company.com">
-      <p class="hint">The completed estimate will be sent here.</p>
+      <p class="hint">The completed estimate will be sent here — usually within 2–5 minutes.</p>
     </div>
 
     <div class="ai-note">
-    
-      <span>Building type, room counts, and layout details are automatically detected from the blueprint by AI. No manual input required.</span>
+   
+      <span>Project name, building type, room counts, and layout details are automatically detected from the blueprint. No manual input required.</span>
     </div>
 
-    <!-- Override section — collapsed by default -->
     <div class="override-toggle" id="overrideToggle" onclick="toggleOverride()">
       <div>
         <div class="toggle-label">Override AI Counts <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#AAA;font-size:10px;margin-left:6px;">optional</span></div>
         <div class="toggle-sub">Manually specify room data if the AI count is wrong</div>
       </div>
-      <span class="arrow" id="toggleArrow">▼</span>
+      <span class="arrow">▼</span>
     </div>
 
     <div class="collapsible" id="overrideSection">
@@ -294,7 +296,9 @@
       </div>
 
       <div style="margin-bottom:16px;">
-        <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:#555;display:block;margin-bottom:10px;">Room Distribution <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#AAA;">(optional)</span></label>
+        <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:#555;display:block;margin-bottom:10px;">
+          Room Distribution <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#AAA;">optional</span>
+        </label>
         <div class="room-grid">
           <div class="field"><label>K (King)</label><input type="number" id="roomK" placeholder="52"></div>
           <div class="field"><label>KE</label><input type="number" id="roomKE" placeholder="3"></div>
@@ -317,6 +321,17 @@
     <div class="divider"></div>
 
     <button class="btn" id="submitBtn" onclick="submitTakeoff()">Generate Takeoff</button>
+
+    <div class="progress" id="progress">
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="progress-meta">
+        <span id="progressMsg">Sending blueprint to AI…</span>
+        <span id="progressTime">0s</span>
+      </div>
+    </div>
+
     <div class="status" id="status"></div>
   </div>
 
@@ -324,13 +339,26 @@
 </div>
 
 <script>
-  const WEBHOOK_URL = 'https://growaiagency.app.n8n.cloud/webhook/takeoff-trigger';
+  const WEBHOOK_URL     = 'https://growaiagency.app.n8n.cloud/webhook/takeoff-trigger';
+  const CONFIRM_TIMEOUT = 20000;
+  const ESTIMATED_SECS  = 180;
+
+  let elapsedTimer = null;
+  let elapsedSecs  = 0;
+
+  const PROGRESS_MSGS = [
+    { at: 0,   msg: 'Sending blueprint to AI…' },
+    { at: 8,   msg: 'Reading blueprint PDF…' },
+    { at: 20,  msg: 'Identifying building type and rooms…' },
+    { at: 40,  msg: 'Extracting scope items…' },
+    { at: 70,  msg: 'Calculating material and labor costs…' },
+    { at: 110, msg: 'Generating estimate document…' },
+    { at: 150, msg: 'Preparing and sending email…' },
+  ];
 
   function toggleOverride() {
-    const section = document.getElementById('overrideSection');
-    const toggle  = document.getElementById('overrideToggle');
-    section.classList.toggle('open');
-    toggle.classList.toggle('open');
+    document.getElementById('overrideSection').classList.toggle('open');
+    document.getElementById('overrideToggle').classList.toggle('open');
   }
 
   function buildRoomData() {
@@ -338,17 +366,15 @@
     if (!totalKeys) return null;
 
     const roomData = { total_keys: parseInt(totalKeys) };
-
-    const simpleFields = [
+    [
       ['corridorFloors',  'corridor_floors'],
       ['wetBarRooms',     'wet_bar_rooms'],
       ['accessibleRooms', 'accessible_rooms'],
       ['jacuzziRooms',    'jacuzzi_rooms'],
       ['kingTubToShower', 'king_tub_to_shower'],
-    ];
-    simpleFields.forEach(([id, key]) => {
-      const val = document.getElementById(id).value;
-      if (val) roomData[key] = parseInt(val);
+    ].forEach(([id, key]) => {
+      const v = document.getElementById(id).value;
+      if (v) roomData[key] = parseInt(v);
     });
 
     const distKeys = ['K','KE','QQ','K-AR','QQ-AR','K1B-AT','K1B-1','K1B-2'];
@@ -356,29 +382,63 @@
     const dist = {};
     let hasDist = false;
     distIds.forEach((id, i) => {
-      const val = document.getElementById(id).value;
-      if (val) { dist[distKeys[i]] = parseInt(val); hasDist = true; }
+      const v = document.getElementById(id).value;
+      if (v) { dist[distKeys[i]] = parseInt(v); hasDist = true; }
     });
     if (hasDist) roomData.room_distribution = dist;
 
     return roomData;
   }
 
+  function startProgress() {
+    elapsedSecs = 0;
+    document.getElementById('progress').classList.add('show');
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressMsg').textContent = PROGRESS_MSGS[0].msg;
+    document.getElementById('progressTime').textContent = '0s';
+
+    elapsedTimer = setInterval(() => {
+      elapsedSecs++;
+      document.getElementById('progressTime').textContent = elapsedSecs + 's';
+      const match = [...PROGRESS_MSGS].reverse().find(m => elapsedSecs >= m.at);
+      if (match) document.getElementById('progressMsg').textContent = match.msg;
+      const pct = Math.min(93, (elapsedSecs / ESTIMATED_SECS) * 100);
+      document.getElementById('progressBar').style.width = pct + '%';
+    }, 1000);
+  }
+
+  function finishProgress(success) {
+    clearInterval(elapsedTimer);
+    if (success) {
+      document.getElementById('progressBar').style.width = '100%';
+      document.getElementById('progressMsg').textContent = 'Done ✓';
+      setTimeout(() => document.getElementById('progress').classList.remove('show'), 2000);
+    } else {
+      document.getElementById('progress').classList.remove('show');
+    }
+  }
+
+  function showStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.className = 'status ' + type;
+    el.textContent = msg;
+  }
+
   async function submitTakeoff() {
     const fileId         = document.getElementById('fileId').value.trim();
     const estimatorEmail = document.getElementById('estimatorEmail').value.trim();
 
-    if (!fileId)          { showStatus('Please enter a Google Drive file ID.', 'err'); return; }
-    if (!estimatorEmail)  { showStatus('Please enter an estimator email address.', 'err'); return; }
+    if (!fileId)         { showStatus('Please enter a Google Drive file ID.', 'err'); return; }
+    if (!estimatorEmail) { showStatus('Please enter an estimator email address.', 'err'); return; }
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.textContent = 'Processing…';
-    showStatus('Blueprint sent for AI analysis. This takes 1–3 minutes — the estimate will arrive by email when ready.', 'loading');
+    document.getElementById('status').className = 'status';
+    startProgress();
 
     const payload = {
       file_id:         fileId,
-      project_name:    document.getElementById('projectName').value.trim() || 'Untitled Project',
       estimator_email: estimatorEmail,
       ai_model:        'google/gemini-3.1-pro-preview',
     };
@@ -389,31 +449,45 @@
       payload.room_data  = roomData;
     }
 
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), CONFIRM_TIMEOUT);
+
     try {
       const response = await fetch(WEBHOOK_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
+        signal:  controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
-        showStatus('✓ Request received. Check ' + estimatorEmail + ' for the completed estimate.', 'ok');
+        finishProgress(true);
+        showStatus(
+          '✓ Takeoff in progress. The estimate will be emailed to ' + estimatorEmail + ' within 2–5 minutes.',
+          'ok'
+        );
       } else {
-        const text = await response.text();
-        showStatus('Error: ' + (text || 'Request failed. Check the file ID and try again.'), 'err');
+        const text = await response.text().catch(() => '');
+        finishProgress(false);
+        showStatus('Server error ' + response.status + ': ' + (text || 'Check the file ID and try again.'), 'err');
       }
+
     } catch (e) {
-      showStatus('Network error: ' + e.message, 'err');
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') {
+        showStatus(
+          '✓ Blueprint received. Processing large files can take 3–6 minutes — check ' + estimatorEmail + ' for the estimate.',
+          'ok'
+        );
+      } else {
+        finishProgress(false);
+        showStatus('Could not reach the server. Check your connection and try again.', 'err');
+      }
     }
 
     btn.disabled = false;
     btn.textContent = 'Generate Takeoff';
-  }
-
-  function showStatus(msg, type) {
-    const el = document.getElementById('status');
-    el.className = 'status ' + type;
-    el.textContent = msg;
   }
 </script>
 
